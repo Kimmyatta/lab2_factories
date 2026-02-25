@@ -1,1 +1,7 @@
-[]
+[
+  {
+    "subject": "Login problem",
+    "body": "I cannot log into my account",
+    "ground_truth": "support"
+  }
+]

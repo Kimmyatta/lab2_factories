@@ -29,6 +29,63 @@ class EmailTopicInferenceService:
             "email": email
         }
     
+    def classify_by_stored_emails(self, email: Email) -> Dict[str, Any]:
+        """Classify email by comparing it with stored emails using embeddings"""
+        import json
+        import numpy as np
+        from app.features.generators import EmailEmbeddingsFeatureGenerator
+
+        email_file = "data/emails.json"
+
+        # Load stored emails
+        with open(email_file, "r") as f:
+            stored_emails = json.load(f)
+
+        if not stored_emails:
+            raise ValueError("No stored emails available")
+
+        embedding_generator = EmailEmbeddingsFeatureGenerator()
+
+        # Generate embedding for input email
+        input_features = embedding_generator.generate_features(email)
+        input_embedding = np.array(input_features["average_embedding"])
+
+        best_score = -1
+        best_topic = None
+
+        # Compare with each stored email
+        for stored in stored_emails:
+
+            stored_email_obj = Email(
+                subject=stored["subject"],
+                body=stored["body"]
+            )
+
+            stored_features = embedding_generator.generate_features(stored_email_obj)
+            stored_embedding = np.array(stored_features["average_embedding"])
+
+            # Cosine similarity
+            dot_product = np.dot(input_embedding, stored_embedding)
+            norm_input = np.linalg.norm(input_embedding)
+            norm_stored = np.linalg.norm(stored_embedding)
+
+            if norm_input == 0 or norm_stored == 0:
+                continue
+
+            cosine_similarity = dot_product / (norm_input * norm_stored)
+
+            if cosine_similarity > best_score:
+                best_score = cosine_similarity
+                best_topic = stored.get("ground_truth")
+
+        if best_topic is None:
+            raise ValueError("No matching email found")
+
+        return {
+            "predicted_topic": best_topic,
+            "similarity_score": float(best_score)
+        }    
+
     def get_pipeline_info(self) -> Dict[str, Any]:
         """Get information about the inference pipeline"""
         return {
